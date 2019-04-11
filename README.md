@@ -4,6 +4,9 @@ Repository for EECS 738 Project Neural Network
 #### Authors
 Zachary McGrath, Kevin Ray (github.com/kray10)
 
+### Data Sets
+All data sets used to train were from: https://en.wikipedia.org/wiki/List_of_datasets_for_machine-learning_research
+
 ## Installation
 
 Clone the repo

@@ -20,5 +20,10 @@ $HMM> pip3 install -r requirements.txt
 
 ```
 ## Theory
+### Network Choice
+
+
+### Architecture
+
 ## Running
 ## Process

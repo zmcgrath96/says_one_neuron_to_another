@@ -3,10 +3,10 @@ from os import walk
 import numpy as np
 import cv2
 
-training_folder = './training_images/'
+training_folder = 'training_images/'
 images = {'simpsons': training_folder + 'simpsons/simpsons_dataset/', 'dogs': training_folder + 'dogs/images/'}
 annotations = {'simpsons': training_folder + 'simpsons/annotation.txt', 'dogs': training_folder + 'annotation/'}
-ouptut_folder = './trained/'
+ouptut_folder = 'trained/'
 img_size = 250
 color = [0, 0, 0]
 
@@ -27,14 +27,14 @@ def block_imgs(path):
 	top, bottom = delta_h//2, delta_h-(delta_h//2)
 	left, right = delta_w//2, delta_w-(delta_w//2)
 
-	
 	return cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)
 
 
 def train(s):
 	imgs = []
-	for (path, _, filenames) in walk(imgs[s]):
-		imgs.extend('{}{}'.format(path, filenames).replace('//', '/'))
+	for (path, _, filenames) in walk(images[s]):
+		complete_paths = [path + '/' + f for f in filenames if os.path.isfile(path + '/' + f)]
+		imgs.extend(complete_paths)
 
 	num_output = len(os.listdir(images[s]))
 	out_f = ouptut_folder + s + '.pickle'
@@ -47,13 +47,11 @@ def train(s):
 	else:
 		print('TODO: Annotations for dogs')
 
-	
-
 
 def main(args):
 	if '-s' in args[0]:
 		print('Training on simpsons data set...')
-		train('simspsons')
+		train('simpsons')
 	
 	elif '-d' in args[0]:
 		print('Training on stanford dog data set...')

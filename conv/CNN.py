@@ -36,13 +36,13 @@ class CNN:
         self.calculate_cost()
         self.backward()
 
-    def forward(self):
+    def forward(self, data):
         for in in range(iter):
-            for img in self.data:
-                conv1 = self.conv_layer()
-                self.relu_layer()
-                self.conv_layer()
-                self.relu_layer()
+            for img in data:
+                conv1 = self.conv_layer(img, self.conv_1_weights) + self.conv_1_biases
+                self.relu_layer(conv1)
+                conv2 = self.conv_layer(conv1, self.conv_2_weights) + self.conv_2_biases
+                self.relu_layer(conv2)
                 self.max_pooling_layer()
                 self.fully_conn_layer()
 

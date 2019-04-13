@@ -3,7 +3,6 @@ import numpy as np
 class CNN:
 
     def __init__(self, data, image_size, num_classes, iter=10):
-        print("I'm a cnn")
         self.filter_size = 5
         self.data = data
         self.num_images = data(len)
@@ -37,14 +36,32 @@ class CNN:
         self.backward()
 
     def forward(self, data):
-        for in in range(iter):
-            for img in data:
-                conv1 = self.conv_layer(img, self.conv_1_weights) + self.conv_1_biases
-                self.relu_layer(conv1)
-                conv2 = self.conv_layer(conv1, self.conv_2_weights) + self.conv_2_biases
-                self.relu_layer(conv2)
-                self.max_pooling_layer()
-                self.fully_conn_layer()
+
+        conv1_list = list()
+        conv2_list = list()
+        for img in data:
+            conv1 = self.conv_layer(img, self.conv_1_weights) + self.conv_1_biases
+            self.relu_layer(conv1)
+            conv2 = self.conv_layer(conv1, self.conv_2_weights) + self.conv_2_biases
+            self.relu_layer(conv2)
+            conv1_list.append(conv1)
+            conv2_list.append(conv2)
+
+        conv1_arr = np.array(conv1_list).reshape(len(data),self.image_size // \
+                        2 -1, self.image_size // 2 -1, self.depth)
+        conv2_arr = np.array(conv2_list).reshape(len(data),self.image_size // \
+                        2 -1, self.image_size // 2 -1, self.depth * 4)
+        arr = self.exapnd(conv2_arr, len(data))
+        full1 = self.fully_conn_layer(arr, self.full_1_weights, self.full_1_biases)
+        self.relu_layer(full1)
+        full2 = self.fully_conn_layer(full1, self.full_2_weights, self.full_2_biases)
+        output = self.soft_max(full2)
+        self.cached_results['conv1'] = conv1_arr
+        self.cached_results['conv2'] = conv2_arr
+        self.cached_results['full1'] = full1
+        self.cached_results['output'] = output
+        return output
+
 
     def backward(self):
         # Backward propogation
@@ -63,9 +80,8 @@ class CNN:
     def relu_layer(self, arr):
         arr[arr<=0] = 0
 
-    def fully_conn_layer(self):
-        # fully_conn_layer
-        print("fully_conn_layer")
+    def fully_conn_layer(self, arr, w, b):
+        return np.matmul(arr, w) + b
 
     def conv_layer(self, image, weights):
         conv_h = (image.shape[0]-weights.shape[0])//2 + 1
@@ -84,6 +100,6 @@ class CNN:
 
         return conv
 
-    def max_pooling_layer(self):
-        # max_pooling_layer
-        print("max_pooling_layer")
+    def exapnd(self, arr, size):
+        return np.array(arr).reshape(size,(self.image_size // 4 -1) * \
+                    (self.fimage_size // 4-1) * self.depth * 4)

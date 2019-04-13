@@ -39,9 +39,9 @@ class CNN:
     def forward(self):
         # Forward propagation
         print("Forward propagation")
-        self.conv_layer_1()
+        self.conv_layer()
         self.relu_layer()
-        self.conv_layer_2()
+        self.conv_layer()
         self.relu_layer()
         self.max_pooling_layer()
         self.fully_conn_layer()
@@ -66,13 +66,22 @@ class CNN:
         # fully_conn_layer
         print("fully_conn_layer")
 
-    def conv_layer_1(self):
-        # conv_layer
-        print("conv_layer_1")
+    def conv_layer(self, image, weights):
+        conv_h = (image.shape[0]-weights.shape[0])//2 + 1
+        conv_w = (image.shape[1]-weights.shape[1])//2 + 1
+        conv = np.zeros([conv_h,conv_w,weights.shape[3]])
 
-    def conv_layer_2(self):
-        # conv_layer
-        print("conv_layer_2")
+        for i in range(weights.shape[3]):
+            row = 0
+            for j in range(0,(image.shape[0]-self.filter_size+1),2):
+                col = 0
+                for k in range(0,(image.shape[1]-self.filter_size+1),2):
+                    conv[row,col,i] = np.sum(np.multiply(image[j:j+self.filter_size, \
+                                        k:k+self.filter_size, :], weights[:,:,i]))
+                    col += 1
+                row += 1
+
+        return conv
 
     def max_pooling_layer(self):
         # max_pooling_layer

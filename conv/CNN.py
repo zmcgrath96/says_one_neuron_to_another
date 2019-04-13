@@ -2,17 +2,38 @@ import numpy as np
 
 class CNN:
 
-    def __init__(self, data, image_size, num_classes, iter=10):
-        self.filter_size = 5
-        self.data = data
-        self.num_images = data(len)
-        self.image_size = image_size
+    def __init__(self):
+        self.data = None
+        self.num_images = None
+        self.image_size = None
         self.num_channels = 3
         self.filter_size = 3
         self.depth = 4
-        self.num_classes = num_classes
+        self.num_classes = None
         self.learning_rate = 0.1
         self.hidden_states = 256
+        self.conv_1_weights = None
+        self.conv_2_weights = None
+        self.conv_1_biases = None
+        self.conv_2_biases = None
+        self.full_1_weights = None
+        self.full_1_biases = None
+        self.full_2_weights = None
+        self.full_2_biases = None
+        self.iter = None
+        self.cached_results = None
+
+    def train(self, data, image_size, num_classes, iter=10):
+        self.initialize_params(data, image_size, num_classes, iter)
+        self.forward()
+        self.calculate_cost()
+        self.backward()
+
+    def initialize_params(data, image_size, num_classes, iter):
+        self.data = data
+        self.num_images = data(len)
+        self.image_size = image_size
+        self.num_classes = num_classes
         self.conv_1_weights = np.random.normal(0,0.5,(self.filter_size,\
                                 self.filter_size,self.num_channels,self.depth))
         self.conv_2_weights = np.random.normal(0,0.5,(self.filter_size,\
@@ -28,12 +49,6 @@ class CNN:
         self.full_2_biases = np.zeros([self.num_classes])
         self.iter = iter
         self.cached_results = dict()
-
-    def train(self):
-        print("training")
-        self.forward()
-        self.calculate_cost()
-        self.backward()
 
     def forward(self, data):
 

@@ -1,2 +1,4 @@
 .DS_Store
-training_images
+dogs/
+simpsons_dataset/
+simpsons_dataset.zip

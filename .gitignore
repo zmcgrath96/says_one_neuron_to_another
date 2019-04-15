@@ -1,4 +1,7 @@
 .DS_Store
-dogs/
 simpsons_dataset/
 simpsons_dataset.zip
+Annotation/
+Images/
+annotation.tar
+images.tar

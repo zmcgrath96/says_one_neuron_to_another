@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 
 class CNN:
 
@@ -9,6 +10,7 @@ class CNN:
         self.num_channels = 3
         self.filter_size = 3
         self.depth = 4
+        self.regularization = 0
         self.num_classes = None
         self.learning_rate = 0.1
         self.hidden_states = 256
@@ -22,22 +24,43 @@ class CNN:
         self.full_2_biases = None
         self.iter = None
         self.cached_results = None
+        self.labels = None
 
-    def train(self, data, image_size, num_classes, iter=10):
-        self.initialize_params(data, image_size, num_classes, iter)
-        self.forward()
-        self.calculate_cost()
-        self.backward()
+    def train(self, data, image_size, labels, iter=11, batch_size=20):
+        self.initialize_params(data, image_size, labels, iter)
+        for step in range(iter):
+            #get the batch data.
+            start = (step*batch_size)%(data.shape[0])
+            end = start + batch_size
 
-    def initialize_params(data, image_size, num_classes, iter):
+            batch_data = data[start:end,:,:,:]
+            batch_labels = labels[start:end]
+
+            for i in range(batch_data.shape[2]):
+
+                output = self.forward(batch_data)
+                print(output.shape)
+                sys.exit(1)
+                loss, accuracy = self.calculate_cost(batch_labels,output)
+                derivatives = self.backward(batch_data, batch_labels)
+                self.update_parameters(derivatives)
+
+                #print loss and accuracy of the batch dataset.
+                if(step%10==0):
+                    print('Step : %d'%step)
+                    print('Loss : %f'%loss)
+                    print('Accuracy : %f%%'%(round(accuracy*100,2)))
+            print(self.conv_1_weights)
+
+    def initialize_params(self, data, image_size, labels, iter):
         self.data = data
-        self.num_images = data(len)
+        self.num_images = len(data)
         self.image_size = image_size
-        self.num_classes = num_classes
+        self.num_classes = len(labels)
         self.conv_1_weights = np.random.normal(0,0.5,(self.filter_size,\
                                 self.filter_size,self.num_channels,self.depth))
         self.conv_2_weights = np.random.normal(0,0.5,(self.filter_size,\
-                                self.filter_size,self.depth,self.depth * 4))
+                                self.filter_size, self.depth, self.depth * 4))
         self.conv_1_biases = np.zeros([1,self.depth])
         self.conv_2_biases = np.zeros([1,self.depth * 4])
         self.full_1_weights = np.random.normal(0,0.5,(((self.image_size//4-1) * \
@@ -49,6 +72,7 @@ class CNN:
         self.full_2_biases = np.zeros([self.num_classes])
         self.iter = iter
         self.cached_results = dict()
+        self.labels = labels
 
     def forward(self, data):
 
@@ -59,17 +83,20 @@ class CNN:
             self.relu_layer(conv1)
             conv2 = self.conv_layer(conv1, self.conv_2_weights) + self.conv_2_biases
             self.relu_layer(conv2)
+            conv2 = conv2.reshape((self.image_size // 4 - 1) * (self.image_size // 4 - 1)\
+                    * self.depth * 4)
             conv1_list.append(conv1)
             conv2_list.append(conv2)
 
-        conv1_arr = np.array(conv1_list).reshape(len(data),self.image_size // \
-                        2 -1, self.image_size // 2 -1, self.depth)
-        conv2_arr = np.array(conv2_list).reshape(len(data),self.image_size // \
-                        2 -1, self.image_size // 2 -1, self.depth * 4)
-        arr = self.exapnd(conv2_arr, len(data))
+        conv1_arr = np.array(conv1_list).reshape(len(data), self.image_size // \
+                        2 - 1, self.image_size // 2 - 1, self.depth)
+        conv2_arr = np.array(conv2_list).reshape(len(data), self.image_size // \
+                        4 - 1, self.image_size // 4 - 1, self.depth * 4)
+        arr = self.expand(conv2_arr, len(data))
         full1 = self.fully_conn_layer(arr, self.full_1_weights, self.full_1_biases)
         self.relu_layer(full1)
         full2 = self.fully_conn_layer(full1, self.full_2_weights, self.full_2_biases)
+        print(self.full_2_weights.shape)
         output = self.soft_max(full2)
         self.cached_results['conv1'] = conv1_arr
         self.cached_results['conv2'] = conv2_arr
@@ -78,13 +105,117 @@ class CNN:
         return output
 
 
-    def backward(self):
-        # Backward propogation
-        print("Backward propogation")
+    def backward(self, data, labels):
+        conv1 = self.cached_results['conv1']
+        conv2 = self.cached_results['conv2']
+        full1 = self.cached_results['full1']
+        output = self.cached_results['output']
 
-    def calculate_cost(self):
-        # calculate_cost
-        print("calculate_cost")
+        temp_arr = np.array(conv2).reshape(-1,(self.image_size // 4-1) * \
+                    (self.image_size // 4 -1)* self.depth * 4)
+
+        error_full2 = output - labels
+        error_full1 = np.matmul(error_full2, self.full_2_weights.T)
+        error_full1 = np.multiply(error_full1, full1)
+        error_full1 = np.multiply(error_full1, (1 - full1))
+
+        error_t = np.multiply(np.multiply(np.matmul(error_full1, self.full_1_weights.T), \
+                    temp_arr), (1 - temp_arr))
+
+        n = data.shape[0]
+
+        error_conv2 = np.array(error_t).reshape(-1, self.image_size // 4 - 1, \
+                        self.image_size // 4 - 1, self.depth * 4)
+        error_conv1 = np.zeros(conv1.shape)
+
+        for i in range(n):
+            error = self.get_conv_errors(error_conv2[i], self.conv_2_weights)
+            error = np.multiply(error, conv1[i])
+            error = np.multiply(error, (1 - conv1[i]))
+            error_conv1 += error
+
+        deriv_full2 = (np.matmul(full1.T, error_full2) + self.regularization * \
+                        self.full_2_weights) / n
+        deriv_full1 = (np.matmul(temp_arr.T, error_full1) + self.regularization * \
+                        self.full_1_weights) / n
+
+        deriv_conv2 = np.zeros(self.conv_2_weights.shape)
+        deriv_conv1 = np.zeros(self.conv_1_weights.shape)
+        for i in range(m):
+            deriv_conv2 = deriv_conv2 + get_deriviatives(error_conv2[i], conv1[i])
+            deriv_conv1 = deriv_conv1 + get_deriviatives(error_conv1[i], data[i])
+            deriv_conv2 = (deriv_conv2 + self.regularization * self.conv_2_weights) / n
+            deriv_conv1 = (deriv_conv1 + self.regularization * self.conv_1_weights) / n
+
+        deriv = dict()
+
+        deriv['deriv_conv1'] = deriv_conv1
+        deriv['deriv_conv2'] = deriv_conv2
+        deriv['deriv_full1'] = deriv_full1
+        deriv['deriv_full2'] = deriv_full2
+
+        return deriv
+
+
+    def get_conv_errors(self, n_error, weight):
+        errors = np.zeros([n_error.shape[0] * 2 + 1, n_error.shape[1] * 2 + 1, \
+                    n_error.shape[2] // 4])
+        for i in range(weight.shape[3]):
+            row = 0
+            for j in range(0, errors.shape[0] - self.filter_size + 1, 2):
+                col=0
+                for k in range(0, errors.shape[2] - self.filter_size + 1, 2):
+                    errors[j:j + self.filter_size, k:k + self.filter_size,:] \
+                        += weight[:,:,:,i] * n_error[row,col,i]
+                    col+=1
+                row +=1
+        return errors
+
+    def get_deriviatives(self, errors, conv_arr):
+        derivatives = np.zeros([self.filter_size, self.filter_size, \
+                        conv_arr.shape[2], errors.shape[2]])
+        for i in range(0, derivatives.shape[3]):
+            row=0
+            for j in range(0, conv_arr.shape[0] - self.filter_size + 1, 2):
+                col = 0
+                for k in range(0, conv_arr.shape[1] - self.filter_size + 1, 2):
+                    derivatives[:,:,:,i] += np.multiply(activation[j:j + self.filter_size,\
+                                k:k + self.filter_size, :], errors[row,col,i])
+                    col += 1
+                row += 1
+        return derivatives
+
+    def apply_derivatives(self, deriv):
+        deriv_conv1 = derivatives['deriv_conv1']
+        deriv_conv2 = derivatives['deriv_conv2']
+        deriv_full1 = derivatives['deriv_full1']
+        deriv_full2 = derivatives['deriv_full2']
+
+        self.conv_1_weights = self.conv_1_weights - self.learning_rate * deriv_conv1
+        self.conv_2_weights = self.conv_2_weights - self.learning_rate * deriv_conv2
+        self.full_1_weights = self.full_1_weights - self.learning_rate * deriv_full1
+        self.full_2_weights = self.full_2_weights - self.learning_rate * deriv_full2
+
+
+    def calculate_cost(self, labels, output):
+        n = len(labels)
+        loss1 = np.log(output)
+        loss1 = np.multiply(loss1, labels)
+        loss1 = np.sum(loss1, 1)
+        loss2 = np.log(1 - output)
+        loss2 = np.multiply(loss2, 1 - labels)
+        loss2 = np.sum(loss2, 1)
+        loss = (loss1 + loss2) * -1
+        loss = np.sum(loss)
+        loss = loss + self.regularization * (np.sum(self.conv_1_weights**2)\
+                + np.sum(self.conv_2_weights**2) + np.sum(self.full_1_weights**2)\
+                + np.sum(self.full_2_weights**2))
+        loss = loss / n
+
+        accuracy = np.sum(np.argmax(labels, 1)==np.argmax(output, 1)) / n
+
+        return loss, accuracy
+
 
     def soft_max(self, arr):
         new_arr = np.exp(arr)
@@ -99,22 +230,22 @@ class CNN:
         return np.matmul(arr, w) + b
 
     def conv_layer(self, image, weights):
-        conv_h = (image.shape[0]-weights.shape[0])//2 + 1
-        conv_w = (image.shape[1]-weights.shape[1])//2 + 1
-        conv = np.zeros([conv_h,conv_w,weights.shape[3]])
+        conv_h = (image.shape[0] - weights.shape[0]) // 2 + 1
+        conv_w = (image.shape[1] - weights.shape[1]) // 2 + 1
+        conv = np.zeros([conv_h, conv_w, weights.shape[3]])
 
         for i in range(weights.shape[3]):
             row = 0
-            for j in range(0,(image.shape[0]-self.filter_size+1),2):
+            for j in range(0, (image.shape[0] - self.filter_size + 1), 2):
                 col = 0
-                for k in range(0,(image.shape[1]-self.filter_size+1),2):
-                    conv[row,col,i] = np.sum(np.multiply(image[j:j+self.filter_size, \
-                                        k:k+self.filter_size, :], weights[:,:,i]))
+                for k in range(0, (image.shape[1] - self.filter_size + 1), 2):
+                    conv[row,col,i] = np.sum(image[j:j+self.filter_size, \
+                                        k:k+self.filter_size, :] * weights[:,:,:,i])
                     col += 1
                 row += 1
 
         return conv
 
-    def exapnd(self, arr, size):
-        return np.array(arr).reshape(size,(self.image_size // 4 -1) * \
-                    (self.fimage_size // 4-1) * self.depth * 4)
+    def expand(self, arr, size):
+        return np.array(arr).reshape(size,(self.image_size // 4 - 1) * \
+                    (self.image_size // 4-1) * self.depth * 4)

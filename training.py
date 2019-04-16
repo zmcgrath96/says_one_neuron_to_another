@@ -7,7 +7,7 @@ from random import shuffle
 
 # Params for training on a data set
 training_folder = 'training_images/'
-pickled_pics = {'simpsons': training_folder + '/simpsons/pickled_images/', 'dogs': training_folder + 'dogs/pickled_images/'}
+pickled_pics = {'simpsons': training_folder + 'simpsons/pickled_images/', 'dogs': training_folder + 'dogs/pickled_images/'}
 images = {'simpsons': training_folder + 'simpsons/simpsons_dataset/', 'dogs': training_folder + 'dogs/images/'}
 annotations = {'simpsons': training_folder + 'simpsons/annotation.txt', 'dogs': training_folder + 'annotation/'}
 ouptut_folder = 'trained/'
@@ -27,7 +27,7 @@ def train(s):
 		pickled_path = pickled_pics[s]
 		np_pic_list = []
 
-		if len(os.listdir(pickled_path)) == 0:
+		if not os.path.isdir(pickled_path):
 			print('Normalizing photos to {}px square images...'.format(img_size))
 			for i in imgs:
 				np_pic_list.append(square(i, img_size, color))

@@ -1,6 +1,7 @@
 import numpy as np 
 import pickle
 import cv2
+import os
 
 def square(path, img_size, color):
 	try:
@@ -19,6 +20,8 @@ def square(path, img_size, color):
 		delta_h = img_size - new_size[0]
 		top, bottom = delta_h//2, delta_h-(delta_h//2)
 		left, right = delta_w//2, delta_w-(delta_w//2)
+
+		path = '/'.join(path.split('/')[-2:])
 		return (path ,cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color))
 	
 	except Exception as e:
@@ -33,7 +36,11 @@ def pickle_pics(pic_list, pickle_path):
 			if t is None:
 				continue
 			path, data = t
-			name = pickle_path + '/'.join(path.split('/')[-2:-1]).split('.')[0] + '.pickle'
+			name = pickle_path + '/' + path.split('.')[0] + '.pickle'
+			name = name.replace('//','/')
+			directory =  '/'.join(name.split('/')[:-1])
+			if not os.path.exists(directory):
+				os.makedirs(directory)
 			np.save(name, data)
 		except Exception as e:
 			print(e)

@@ -4,7 +4,6 @@ import numpy as np
 from square_and_pickle_pics import *
 from conv.CNN import CNN
 from random import shuffle
-import time
 
 # Params for training on a data set
 training_folder = 'training_images/'

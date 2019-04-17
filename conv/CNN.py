@@ -10,10 +10,35 @@ class CNN:
         self.regularization = 0
         self.learning_rate = 0.1
         self.hidden_states = 256
+        self.conv_1_weights = None
+        self.conv_2_weights = None
+        self.conv_1_biases = None
+        self.conv_2_biases = None
+        self.full_1_weights = None
+        self.full_1_biases = None
+        self.full_2_weights = None
+        self.full_2_biases = None
+        self.iter = None
+        self.cached_results = None
+        self.labels = None
 
-    def train(self, data, image_size, labels, num_classes, iter=11, batch_size=20):
-        self.initialize_params(data, image_size, labels, num_classes, iter)
+    '''
+    Description:
+        Go through the entire set 'iter' number of Epochs. Batch the data
+        into the the batch_size and make that many forward passes. Make the
+        backward pass after that for that set and adjust weights
+
+    Parameters:
+        data: training data set [num_images][image_size][image_size][rgb]
+        image_size: n number of pixels of an nxn image (numpy array)
+        labels: label for the images (one hot array): [num_images][num_classes]
+        iter: number of epochs to train over
+        batch_size: number of images per forward/backword run
+    '''
+    def train(self, data, image_size, labels, iter=11, batch_size=20):
+        self.initialize_params(data, image_size, labels, iter)
         for step in range(iter):
+            print('Epoch {}'.format(step))
             #get the batch data.
             start = (step*batch_size)%(data.shape[0])
             end = start + batch_size
@@ -21,10 +46,15 @@ class CNN:
             batch_data = data[start:end,:,:,:]
             batch_labels = labels[start:end]
 
-            output = self.forward(batch_data)
-            # loss, accuracy = self.calculate_cost(batch_labels,output)
-            # derivatives = self.backward(batch_data, batch_labels)
-            # self.update_parameters(derivatives)
+            for i in range(batch_data.shape[2]):
+                print('Batch {}'.format(i))
+
+                output = self.forward(batch_data)
+                print(output.shape)
+                sys.exit(1)
+                loss, accuracy = self.calculate_cost(batch_labels, output)
+                derivatives = self.backward(batch_data, batch_labels)
+                self.update_parameters(derivatives)
 
             #print loss and accuracy of the batch dataset.
             # if(step%10==0):
@@ -54,8 +84,18 @@ class CNN:
         self.cached_results = dict()
         self.labels = labels
 
-    def forward(self, data):
+    '''
+    Description:
+        Forward pass of the CNN. Predicts what the image is based on the
+        images passed in
 
+    Parameters:
+        data: [batch_length] images to train on
+
+    Returns:
+         output: [num_classes] of likelihood of class
+    '''
+    def forward(self, data):
         conv1_list = list()
         conv2_list = list()
         for img in data:
@@ -83,7 +123,18 @@ class CNN:
         self.cached_results['output'] = output
         return output
 
+    '''
+    Description:
+        Reverse pass on the CNN. Adjusts weights/values of convolution and fully
+        connected layer to improve prediction
 
+    Parameters:
+        data: [batch_size] of images (numpy arrays)
+        labels: [batch_size] of [num_classes] one hot arrays of classes
+
+    Returns:
+        deriv: {} of derivatives for each convolution and each fully connected layer
+    '''
     def backward(self, data, labels):
         conv1 = self.cached_results['conv1']
         conv2 = self.cached_results['conv2']
@@ -120,7 +171,7 @@ class CNN:
 
         deriv_conv2 = np.zeros(self.conv_2_weights.shape)
         deriv_conv1 = np.zeros(self.conv_1_weights.shape)
-        for i in range(m):
+        for i in range(n):
             deriv_conv2 = deriv_conv2 + get_deriviatives(error_conv2[i], conv1[i])
             deriv_conv1 = deriv_conv1 + get_deriviatives(error_conv1[i], data[i])
             deriv_conv2 = (deriv_conv2 + self.regularization * self.conv_2_weights) / n
@@ -165,36 +216,50 @@ class CNN:
         return derivatives
 
     def apply_derivatives(self, deriv):
-        deriv_conv1 = derivatives['deriv_conv1']
-        deriv_conv2 = derivatives['deriv_conv2']
-        deriv_full1 = derivatives['deriv_full1']
-        deriv_full2 = derivatives['deriv_full2']
+        deriv_conv1 = deriv['deriv_conv1']
+        deriv_conv2 = deriv['deriv_conv2']
+        deriv_full1 = deriv['deriv_full1']
+        deriv_full2 = deriv['deriv_full2']
 
         self.conv_1_weights = self.conv_1_weights - self.learning_rate * deriv_conv1
         self.conv_2_weights = self.conv_2_weights - self.learning_rate * deriv_conv2
         self.full_1_weights = self.full_1_weights - self.learning_rate * deriv_full1
         self.full_2_weights = self.full_2_weights - self.learning_rate * deriv_full2
 
+    '''
+    Description:
+        Cost function used here is the Categorical Cross Entropy function
+        returns the cost for each image
 
+    Parameters:
+        labels: [batch_size][num_labels] The correct labels
+        output: [batch_size][num_labes] the prediction from forward step
+
+    Returns:
+        loss: []
+        accuracy:
+    '''
     def calculate_cost(self, labels, output):
-        n = len(labels)
-        loss1 = np.log(output)
-        loss1 = np.multiply(loss1, labels)
-        loss1 = np.sum(loss1, 1)
-        loss2 = np.log(1 - output)
-        loss2 = np.multiply(loss2, 1 - labels)
-        loss2 = np.sum(loss2, 1)
-        loss = (loss1 + loss2) * -1
-        loss = np.sum(loss)
-        loss = loss + self.regularization * (np.sum(self.conv_1_weights**2)\
-                + np.sum(self.conv_2_weights**2) + np.sum(self.full_1_weights**2)\
-                + np.sum(self.full_2_weights**2))
-        loss = loss / n
+        loss = np.ndarray(labels.shape)
+        for n in len(labels):
+            loss[n] = -np.sum(labels[n] * np.log(output))
+
+        # n = len(labels)
+        # loss1 = np.sum(np.multiply(np.log(output), labels), 1)
+        # loss2 = np.sum(np.multiply(np.log(1 - output), 1 - labels), 1)
+        # loss = np.sum((loss1 + loss2) * -1)
+        # loss = loss + self.regularization * (np.sum(self.conv_1_weights**2)\
+        #         + np.sum(self.conv_2_weights**2) + np.sum(self.full_1_weights**2)\
+        #         + np.sum(self.full_2_weights**2))
+        # loss = loss / n
 
         accuracy = np.sum(np.argmax(labels, 1)==np.argmax(output, 1)) / n
 
         return loss, accuracy
 
+#
+#         UTILITY FUNCTIONS
+#
     def relu_layer(self, arr):
         arr[arr<=0] = 0
 

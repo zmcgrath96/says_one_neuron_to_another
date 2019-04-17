@@ -6,3 +6,4 @@ Images/
 annotation.tar
 images.tar
 pickled_images/
+__pycache__/

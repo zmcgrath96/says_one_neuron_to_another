@@ -46,15 +46,13 @@ class CNN:
             batch_data = data[start:end,:,:,:]
             batch_labels = labels[start:end]
 
-            for i in range(batch_data.shape[2]):
-                print('Batch {}'.format(i))
+            print('Batch {}'.format(step))
 
-                output = self.forward(batch_data)
-                print(output.shape)
-                sys.exit(1)
-                loss, accuracy = self.calculate_cost(batch_labels, output)
-                derivatives = self.backward(batch_data, batch_labels)
-                self.update_parameters(derivatives)
+            output = self.forward(batch_data)
+            sys.exit(1)
+            loss, accuracy = self.calculate_cost(batch_labels, output)
+            derivatives = self.backward(batch_data, batch_labels)
+            self.update_parameters(derivatives)
 
             #print loss and accuracy of the batch dataset.
             # if(step%10==0):

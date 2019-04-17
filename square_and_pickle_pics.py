@@ -1,13 +1,14 @@
-import numpy as np 
+import numpy as np
 import pickle
 import cv2
 import os
+import traceback
 
 def square(path, img_size, color):
 	try:
 		img = cv2.imread(path)
 		# size is in (height, width) format
-		old_size = img.shape[:2] 
+		old_size = img.shape[:2]
 
 		ratio = float(img_size)/max(old_size)
 		new_size = tuple([int(x*ratio) for x in old_size])
@@ -23,7 +24,7 @@ def square(path, img_size, color):
 
 		path = '/'.join(path.split('/')[-2:])
 		return (path ,cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color))
-	
+
 	except Exception as e:
 		print('Could not open image: ' + str(path))
 

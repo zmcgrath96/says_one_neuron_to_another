@@ -1,33 +1,18 @@
 import numpy as np
-import sys
+from scipy.special import softmax
 
 class CNN:
 
     def __init__(self):
-        self.data = None
-        self.num_images = None
-        self.image_size = None
         self.num_channels = 3
         self.filter_size = 3
         self.depth = 4
         self.regularization = 0
-        self.num_classes = None
         self.learning_rate = 0.1
         self.hidden_states = 256
-        self.conv_1_weights = None
-        self.conv_2_weights = None
-        self.conv_1_biases = None
-        self.conv_2_biases = None
-        self.full_1_weights = None
-        self.full_1_biases = None
-        self.full_2_weights = None
-        self.full_2_biases = None
-        self.iter = None
-        self.cached_results = None
-        self.labels = None
 
-    def train(self, data, image_size, labels, iter=11, batch_size=20):
-        self.initialize_params(data, image_size, labels, iter)
+    def train(self, data, image_size, labels, num_classes, iter=11, batch_size=20):
+        self.initialize_params(data, image_size, labels, num_classes, iter)
         for step in range(iter):
             #get the batch data.
             start = (step*batch_size)%(data.shape[0])
@@ -36,27 +21,22 @@ class CNN:
             batch_data = data[start:end,:,:,:]
             batch_labels = labels[start:end]
 
-            for i in range(batch_data.shape[2]):
+            output = self.forward(batch_data)
+            # loss, accuracy = self.calculate_cost(batch_labels,output)
+            # derivatives = self.backward(batch_data, batch_labels)
+            # self.update_parameters(derivatives)
 
-                output = self.forward(batch_data)
-                print(output.shape)
-                sys.exit(1)
-                loss, accuracy = self.calculate_cost(batch_labels,output)
-                derivatives = self.backward(batch_data, batch_labels)
-                self.update_parameters(derivatives)
+            #print loss and accuracy of the batch dataset.
+            # if(step%10==0):
+            #     print('Step : %d'%step)
+            #     print('Loss : %f'%loss)
+            #     print('Accuracy : %f%%'%(round(accuracy*100,2)))
 
-                #print loss and accuracy of the batch dataset.
-                if(step%10==0):
-                    print('Step : %d'%step)
-                    print('Loss : %f'%loss)
-                    print('Accuracy : %f%%'%(round(accuracy*100,2)))
-            print(self.conv_1_weights)
-
-    def initialize_params(self, data, image_size, labels, iter):
+    def initialize_params(self, data, image_size, labels, num_classes, iter):
         self.data = data
         self.num_images = len(data)
         self.image_size = image_size
-        self.num_classes = len(labels)
+        self.num_classes = num_classes
         self.conv_1_weights = np.random.normal(0,0.5,(self.filter_size,\
                                 self.filter_size,self.num_channels,self.depth))
         self.conv_2_weights = np.random.normal(0,0.5,(self.filter_size,\
@@ -96,8 +76,7 @@ class CNN:
         full1 = self.fully_conn_layer(arr, self.full_1_weights, self.full_1_biases)
         self.relu_layer(full1)
         full2 = self.fully_conn_layer(full1, self.full_2_weights, self.full_2_biases)
-        print(self.full_2_weights.shape)
-        output = self.soft_max(full2)
+        output = softmax(full2)
         self.cached_results['conv1'] = conv1_arr
         self.cached_results['conv2'] = conv2_arr
         self.cached_results['full1'] = full1
@@ -216,13 +195,6 @@ class CNN:
 
         return loss, accuracy
 
-
-    def soft_max(self, arr):
-        new_arr = np.exp(arr)
-        sum_new_arr = np.sum(new_arr,1).reshape(-1,1)
-        new_arr = new_arr/sum_new_arr
-        return new_arr
-
     def relu_layer(self, arr):
         arr[arr<=0] = 0
 
@@ -248,4 +220,4 @@ class CNN:
 
     def expand(self, arr, size):
         return np.array(arr).reshape(size,(self.image_size // 4 - 1) * \
-                    (self.image_size // 4-1) * self.depth * 4)
+                    (self.image_size // 4 - 1) * self.depth * 4)

@@ -75,7 +75,7 @@ def train_cnn(s):
 	data = np.array(data)
 	labels = np.array(labels)
 	cnn = CNN()
-	cnn.train(data, img_size, labels, len(label_map), batch_size=2)
+	cnn.train(data, img_size, labels, len(label_map))
 
 def main(args):
 	if '-s' in args[0]:

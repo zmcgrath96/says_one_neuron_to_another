@@ -37,32 +37,32 @@ class CNN:
         iter: number of epochs to train over
         batch_size: number of images per forward/backword run
     '''
-    def train(self, data, image_size, labels, iter=11, batch_size=20):
-        self.initialize_params(data, image_size, labels, len(labels[0]), iter)
-        for step in range(iter):
-            print('Epoch {}'.format(step))
-            #get the batch data.
-            start = (step*batch_size)%(data.shape[0])
-            end = start + batch_size
+    def train(self, data, image_size, labels, iter=1, batch_size=20):
+        self.initialize_params(data, image_size, labels, iter)
+        for it in range(iter):
+            print('Epoch {}'.format(it))
+            for step in range(0, len(data), batch_size):
+                #get the batch data.
+                start = step
+                end = start + batch_size
 
-            batch_data = data[start:end,:,:,:]
-            batch_labels = labels[start:end]
+                batch_data = data[start:end,:,:,:]
+                batch_labels = labels[start:end]
 
-            print('Batch {}'.format(step))
+                print('Batch {}'.format(step))
 
-            output = self.forward(batch_data)
-            sys.exit(1)
-            loss, accuracy = self.calculate_cost(batch_labels, output)
-            derivatives = self.backward(batch_data, batch_labels)
-            self.update_parameters(derivatives)
+                output = self.forward(batch_data)
+                loss, accuracy = self.calculate_cost(batch_labels, output)
+                derivatives = self.backward(batch_data, batch_labels)
+                self.update_parameters(derivatives)
 
-            #print loss and accuracy of the batch dataset.
-            # if(step%10==0):
-            #     print('Step : %d'%step)
-            #     print('Loss : %f'%loss)
-            #     print('Accuracy : %f%%'%(round(accuracy*100,2)))
+                # print loss and accuracy of the batch dataset.
+                # if(step%10==0):
+                #     print('Step : %d'%step)
+                #     print('Loss : %f'%loss)
+                #     print('Accuracy : %f%%'%(round(accuracy*100,2)))
 
-    def initialize_params(self, data, image_size, labels, num_classes, iter):
+    def initialize_params(self, data, image_size, labels, num_classes):
         self.data = data
         self.num_images = len(data)
         self.image_size = image_size
@@ -80,7 +80,6 @@ class CNN:
         self.full_2_weights = np.random.normal(0,0.5,(self.hidden_states,\
                                 self.num_classes))
         self.full_2_biases = np.zeros([self.num_classes])
-        self.iter = iter
         self.cached_results = dict()
         self.labels = labels
 
@@ -200,8 +199,8 @@ class CNN:
         deriv_conv2 = np.zeros(self.conv_2_weights.shape)
         deriv_conv1 = np.zeros(self.conv_1_weights.shape)
         for i in range(n):
-            deriv_conv2 = deriv_conv2 + get_deriviatives(error_conv2[i], conv1[i])
-            deriv_conv1 = deriv_conv1 + get_deriviatives(error_conv1[i], data[i])
+            deriv_conv2 = deriv_conv2 + self.get_deriviatives(error_conv2[i], conv1[i])
+            deriv_conv1 = deriv_conv1 + self.get_deriviatives(error_conv1[i], data[i])
             deriv_conv2 = (deriv_conv2 + self.regularization * self.conv_2_weights) / n
             deriv_conv1 = (deriv_conv1 + self.regularization * self.conv_1_weights) / n
 
@@ -296,7 +295,7 @@ class CNN:
 
 
     def get_conv_errors(self, n_error, weight):
-        errors = np.zeros([n_error.shape[0] * 2 + 1, n_error.shape[1] * 2 + 1, \
+        errors = np.zeros([n_error.shape[0] * 2 + 2, n_error.shape[1] * 2 + 2, \
                     n_error.shape[2] // 4])
         for i in range(weight.shape[3]):
             row = 0
@@ -317,7 +316,7 @@ class CNN:
             for j in range(0, conv_arr.shape[0] - self.filter_size + 1, 2):
                 col = 0
                 for k in range(0, conv_arr.shape[1] - self.filter_size + 1, 2):
-                    derivatives[:,:,:,i] += np.multiply(activation[j:j + self.filter_size,\
+                    derivatives[:,:,:,i] += np.multiply(conv_arr[j:j + self.filter_size,\
                                 k:k + self.filter_size, :], errors[row,col,i])
                     col += 1
                 row += 1
@@ -328,6 +327,17 @@ class CNN:
         deriv_conv2 = deriv['deriv_conv2']
         deriv_full1 = deriv['deriv_full1']
         deriv_full2 = deriv['deriv_full2']
+
+        self.conv_1_weights = self.conv_1_weights - self.learning_rate * deriv_conv1
+        self.conv_2_weights = self.conv_2_weights - self.learning_rate * deriv_conv2
+        self.full_1_weights = self.full_1_weights - self.learning_rate * deriv_full1
+        self.full_2_weights = self.full_2_weights - self.learning_rate * deriv_full2
+
+    def update_parameters(self, derivatives):
+        deriv_conv1 = derivatives['deriv_conv1']
+        deriv_conv2 = derivatives['deriv_conv2']
+        deriv_full1 = derivatives['deriv_full1']
+        deriv_full2 = derivatives['deriv_full2']
 
         self.conv_1_weights = self.conv_1_weights - self.learning_rate * deriv_conv1
         self.conv_2_weights = self.conv_2_weights - self.learning_rate * deriv_conv2
@@ -349,7 +359,7 @@ class CNN:
     '''
     def calculate_cost(self, labels, output):
         loss = np.ndarray(labels.shape)
-        for n in len(labels):
+        for n in range(len(labels)):
             loss[n] = -np.sum(labels[n] * np.log(output))
 
         # n = len(labels)
@@ -378,3 +388,5 @@ class CNN:
     def expand(self, arr, size):
         return np.array(arr).reshape(size,(self.image_size // 4 - 1) * \
                     (self.image_size // 4 - 1) * self.depth * 4)
+
+

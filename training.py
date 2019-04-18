@@ -17,7 +17,7 @@ color = [0, 0, 0]
 
 def train(s):
 	if not (os.path.isdir(pickled_pics[s])):
-
+		imgs = []
 		for (path, _, filenames) in walk(images[s]):
 			complete_paths = [path + '/' + f for f in filenames if os.path.isfile(path + '/' + f)]
 			imgs.extend(complete_paths)
@@ -37,7 +37,6 @@ def train(s):
 					pickle_pics(np_pic_list, pickled_path)
 					np_pic_list.clear()
 				count += 1
-
 
 	else:
 		train_cnn(s)
@@ -63,7 +62,7 @@ def train_cnn(s):
 				data = np.load(path + "/" + img)
 				label = label_map[key]
 				data_labels.append([data, label])
-
+	print('Finished loading images')
 	shuffle(data_labels)
 	data = []
 	labels = []

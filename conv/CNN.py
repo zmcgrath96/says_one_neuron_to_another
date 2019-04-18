@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.special import softmax
+import sys
 
 class CNN:
 
@@ -10,6 +11,7 @@ class CNN:
         self.regularization = 0
         self.learning_rate = 0.1
         self.hidden_states = 256
+        #AKA filters for the 2 convolutions
         self.conv_1_weights = None
         self.conv_2_weights = None
         self.conv_1_biases = None
@@ -36,7 +38,7 @@ class CNN:
         batch_size: number of images per forward/backword run
     '''
     def train(self, data, image_size, labels, iter=11, batch_size=20):
-        self.initialize_params(data, image_size, labels, iter)
+        self.initialize_params(data, image_size, labels, len(labels[0]), iter)
         for step in range(iter):
             print('Epoch {}'.format(step))
             #get the batch data.
@@ -94,13 +96,18 @@ class CNN:
          output: [num_classes] of likelihood of class
     '''
     def forward(self, data):
+        # lists to hold convolutions of each image in the batch
         conv1_list = list()
         conv2_list = list()
+
         for img in data:
-            conv1 = self.conv_layer(img, self.conv_1_weights) + self.conv_1_biases
+            # convolute each layer and squash them with relu
+            conv1 = self.forward_conv(img, self.conv_1_weights, self.conv_1_biases)
             self.relu_layer(conv1)
-            conv2 = self.conv_layer(conv1, self.conv_2_weights) + self.conv_2_biases
+
+            conv2 = self.forward_conv(conv1, self.conv_2_weights, self.conv_2_biases)
             self.relu_layer(conv2)
+
             conv2 = conv2.reshape((self.image_size // 4 - 1) * (self.image_size // 4 - 1)\
                     * self.depth * 4)
             conv1_list.append(conv1)
@@ -110,14 +117,27 @@ class CNN:
                         2 - 1, self.image_size // 2 - 1, self.depth)
         conv2_arr = np.array(conv2_list).reshape(len(data), self.image_size // \
                         4 - 1, self.image_size // 4 - 1, self.depth * 4)
-        arr = self.expand(conv2_arr, len(data))
+
+        # Max pooling layer
+        pooled = np.zeros(conv2_arr.shape[0])
+        stride = 4
+        pooling_width = 4
+        for img in range(conv2_arr.shape[0]):
+            pooled[img] = self.max_pool(conv2_arr[2], pooling_width, stride)
+
+        # Flatten the data 
+        arr = self.expand(pooled, len(data))
         full1 = self.fully_conn_layer(arr, self.full_1_weights, self.full_1_biases)
         self.relu_layer(full1)
         full2 = self.fully_conn_layer(full1, self.full_2_weights, self.full_2_biases)
         output = softmax(full2)
+
+        # Cache the results
         self.cached_results['conv1'] = conv1_arr
         self.cached_results['conv2'] = conv2_arr
+        self.cached_results['pooled'] = pooled
         self.cached_results['full1'] = full1
+        self.cached_results['full2'] = full2
         self.cached_results['output'] = output
         return output
 
@@ -137,7 +157,17 @@ class CNN:
         conv1 = self.cached_results['conv1']
         conv2 = self.cached_results['conv2']
         full1 = self.cached_results['full1']
+        full2 = self.cached_results['full2']
         output = self.cached_results['output']
+
+        derivs_out = output - labels
+
+        #loss gradient of full1
+        derivs_weights_f = derivs_out.dot(full1.T)
+        # loss gradient for the bias
+        derivs_bias = np.sum(derivs_weights_f, 1).reshape(full2.shape)
+        
+        ##### TODO: the rest of this. Not really sure whats going on yet
 
         temp_arr = np.array(conv2).reshape(-1,(self.image_size // 4-1) * \
                     (self.image_size // 4 -1)* self.depth * 4)
@@ -183,6 +213,86 @@ class CNN:
         deriv['deriv_full2'] = deriv_full2
 
         return deriv
+
+    def forward_conv(self, image, weights, bias):
+        conv_h = (image.shape[0] - weights.shape[0]) // 2 + 1
+        conv_w = (image.shape[1] - weights.shape[1]) // 2 + 1
+        conv = np.zeros([conv_h, conv_w, weights.shape[3]])
+
+        for i in range(weights.shape[3]):
+            row = 0
+            for j in range(0, (image.shape[0] - self.filter_size + 1), 2):
+                col = 0
+                for k in range(0, (image.shape[1] - self.filter_size + 1), 2):
+                    conv[row,col,i] = np.sum(image[j:j+self.filter_size, \
+                                        k:k+self.filter_size, :] * weights[:,:,:,i])
+                    col += 1
+                row += 1
+
+        return conv + bias
+
+    def reverse_conv(self, derivs_previous, curr_conv, filt, stride):
+        derivs_out = np.zeros(curr_conv.shape)
+        derivs_filt = np.zeros(filt.shape)
+        derivs_bias = 0
+
+        (f_width, f_height, _) = filt.shape
+        (_, conv_height, _) = curr_conv.shape
+
+        curr_y = small_y = 0
+        while curr_y + f_height <= conv_height:
+            curr_x = small_x = 0
+            while curr_x + f_width < conv_height:
+                derivs_filt += derivs_previous[small_y, small_x] * curr_conv[curr_y:curr_y + f_height, curr_x:curr_x + f_width, :]
+                derivs_out[curr_y:curr_y + f_height, curr_x:curr_x + f_width, :] = derivs_previous[small_y, small_x] * filt
+                small_x += 1
+                curr_x += stride
+            small_y += 1
+            curr_y += stride
+        
+        derivs_bias = np.sum(derivs_previous)
+        return derivs_out, derivs_filt, derivs_bias
+
+
+    '''
+    Description:
+        Using a width of the pool and the stride length, take the max value for every frame in the
+        image of the width. There is no max done for the depth of the image
+
+    Parameters:
+        img: image to pool
+        frame_w: the width of the pooling window
+        stride: how far to move the pooling window
+
+    Returns:
+        pooled: the pooled version of the image passed in
+    '''
+    def max_pool(self, img, frame_w, stride):
+        (old_width, old_height, depth) = img.shape
+
+        # max pooled numpy array will have size (reduced height, reduced width, depth)
+        new_width = ((old_width - frame_w)/stride) + 1
+        new_height = ((old_height - frame_w)/stride) + 1
+
+        # the pooled numpy array
+        pooled = np.zeros((new_width, new_height, depth))
+
+        # go through the image vertically
+        curr_y = pooled_x = 0
+        while curr_y + frame_w <= old_height:
+            # go through the image horizontally
+            curr_x = pooled_y = 0
+            while curr_x + frame_w <= old_width:
+                # go through the depth of the image
+                for c in range(depth):
+                    pooled[pooled_y, pooled_x, c] = np.max(img[curr_y+frame_w, curr_x+frame_w, c])
+
+                curr_x += stride 
+                pooled_x += 1
+            curr_y += stride 
+            pooled_y += 1
+
+        return pooled
 
 
     def get_conv_errors(self, n_error, weight):
@@ -264,22 +374,6 @@ class CNN:
     def fully_conn_layer(self, arr, w, b):
         return np.matmul(arr, w) + b
 
-    def conv_layer(self, image, weights):
-        conv_h = (image.shape[0] - weights.shape[0]) // 2 + 1
-        conv_w = (image.shape[1] - weights.shape[1]) // 2 + 1
-        conv = np.zeros([conv_h, conv_w, weights.shape[3]])
-
-        for i in range(weights.shape[3]):
-            row = 0
-            for j in range(0, (image.shape[0] - self.filter_size + 1), 2):
-                col = 0
-                for k in range(0, (image.shape[1] - self.filter_size + 1), 2):
-                    conv[row,col,i] = np.sum(image[j:j+self.filter_size, \
-                                        k:k+self.filter_size, :] * weights[:,:,:,i])
-                    col += 1
-                row += 1
-
-        return conv
 
     def expand(self, arr, size):
         return np.array(arr).reshape(size,(self.image_size // 4 - 1) * \

@@ -75,7 +75,7 @@ def train_cnn(s):
 	data = np.array(data)
 	labels = np.array(labels)
 	params = cnn.train(data, labels, len(label_map))
-	np.save(ouptut_folder + "params", params)
+	np.save(ouptut_folder + s + "_params", params)
 
 
 def main(args):

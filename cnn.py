@@ -48,7 +48,7 @@ def train(data, labels, num_classes, img_dim=250, img_depth=3, batch_size=20, ep
              print("Epoch: {}, Batch: {}".format(epoch, i), end="")
              sys.stdout.flush()
              params, cost = adam_opt_alg(batch, labels, num_classes, 0.01, img_dim, img_depth, 0.9, 0.999, params, cost, conv_stride, pool_width, pool_stride)
-             print("\n {}".cost(cost))
+             print("\n {}".format(cost))
              sys.stdout.flush()
              end_t = time.time()
              print("Batch {} took {} s".format(i, end_t - s_t))
@@ -284,7 +284,7 @@ Returns:
     loss int
 '''
 def calc_loss(output, labels):
-    return -np.sum(labels * np.log(output))
+    return -np.sum(labels * np.log(output.clip(min=0.00000001)))
 
 '''
 =================================================================================================

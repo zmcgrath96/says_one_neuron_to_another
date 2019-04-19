@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import softmax
 import sys
+import time
 
 '''
 Description:
@@ -16,28 +17,42 @@ Parameters:
     epochs: number of training iterations
 '''
 def train(data, labels, num_classes, img_dim=250, img_depth=3, batch_size=20, epochs=1):
-
     filt_dim = 5
-    num_filt = 8
+    num_filt = 2
+    pool_width = 2
+    pool_stride = 2
+    conv_stride = 1
+    a = int((img_dim - filt_dim)/conv_stride) + 1
+    x = int((a - filt_dim)/conv_stride) + 1
+    weight_1_size = int((x - pool_width)/pool_stride) + 1
 
-    f1 = initialize_filter((num_filt,filt_dim,filt_dim,img_depth))
-    f2 = initialize_filter((num_filt,filt_dim,filt_dim,num_filt))
-    w3 = initialize_weights((128,117128))
-    w4 = initialize_weights((num_classes,128))
+    filter_1 = initialize_filter((num_filt,filt_dim,filt_dim,img_depth))
+    filter_2 = initialize_filter((num_filt,filt_dim,filt_dim,num_filt))
+    weight_1 = initialize_weights((128, num_filt * weight_1_size * weight_1_size))
+    weight_2 = initialize_weights((num_classes,128))
 
-    b1 = np.zeros((f1.shape[0],1))
-    b2 = np.zeros((f2.shape[0],1))
-    b3 = np.zeros((w3.shape[0],1))
-    b4 = np.zeros((w4.shape[0],1))
+    bias_1 = np.zeros((filter_1.shape[0],1))
+    bias_2 = np.zeros((filter_2.shape[0],1))
+    bias_3 = np.zeros((weight_1.shape[0],1))
+    bias_4 = np.zeros((weight_2.shape[0],1))
 
-    params = [f1, f2, w3, w4, b1, b2, b3, b4]
+    params = [filter_1, filter_2, weight_1, weight_2, bias_1, bias_2, bias_3, bias_4]
 
     cost = []
 
     for epoch in range(epochs):
          batches = [data[k:k + batch_size] for k in range(0, data.shape[0], batch_size)]
+         i = 1
          for batch in batches:
-             params, cost = adam_opt_alg(batch, labels, num_classes, 0.01, img_dim, img_depth, 0.9, 0.999, params, cost)
+             s_t = time.time()
+             print("Epoch: {}, Batch: {}".format(epoch, i), end="")
+             sys.stdout.flush()
+             params, cost = adam_opt_alg(batch, labels, num_classes, 0.01, img_dim, img_depth, 0.9, 0.999, params, cost, conv_stride, pool_width, pool_stride)
+             print("\n {}".cost(cost))
+             sys.stdout.flush()
+             end_t = time.time()
+             print("Batch {} took {} s".format(i, end_t - s_t))
+             i += 1
     return params
 
 '''
@@ -84,99 +99,102 @@ Parameters:
     cost: list of costs
 
 Returns:
-    Returns the updated paramters and costs
+    params: array of the filters, weights, and biases after back propogation
+    cost: total cost for the batch
 '''
-def adam_opt_alg(batch, labels, num_classes, lr, img_dim, d, beta1, beta2, params, cost):
-    [f1, f2, w3, w4, b1, b2, b3, b4] = params
+def adam_opt_alg(batch, labels, num_classes, lr, img_dim, d, beta1, beta2, params, cost, conv_stride, pool_width, pool_stride):
+    [filter_1, filter_2, weight_1, weight_2, bias_1, bias_2, bias_3, bias_4] = params
     epsilon = 1e-7
 
     temp_cost = 0
     batch_size = len(batch)
 
     # initialize gradients and momentum,RMS params
-    df1 = np.zeros(f1.shape)
-    df2 = np.zeros(f2.shape)
-    dw3 = np.zeros(w3.shape)
-    dw4 = np.zeros(w4.shape)
-    db1 = np.zeros(b1.shape)
-    db2 = np.zeros(b2.shape)
-    db3 = np.zeros(b3.shape)
-    db4 = np.zeros(b4.shape)
+    deriv_filter_1 = np.zeros(filter_1.shape)
+    deriv_filter_2 = np.zeros(filter_2.shape)
+    deriv_weight_1 = np.zeros(weight_1.shape)
+    deriv_weight_2 = np.zeros(weight_2.shape)
+    deriv_bias_1 = np.zeros(bias_1.shape)
+    deriv_bias_2 = np.zeros(bias_2.shape)
+    deriv_bias_3 = np.zeros(bias_3.shape)
+    deriv_bias_4 = np.zeros(bias_4.shape)
 
-    v1 = np.zeros(f1.shape)
-    v2 = np.zeros(f2.shape)
-    v3 = np.zeros(w3.shape)
-    v4 = np.zeros(w4.shape)
-    bv1 = np.zeros(b1.shape)
-    bv2 = np.zeros(b2.shape)
-    bv3 = np.zeros(b3.shape)
-    bv4 = np.zeros(b4.shape)
+    v1 = np.zeros(filter_1.shape)
+    v2 = np.zeros(filter_2.shape)
+    v3 = np.zeros(weight_1.shape)
+    v4 = np.zeros(weight_2.shape)
+    bv1 = np.zeros(bias_1.shape)
+    bv2 = np.zeros(bias_2.shape)
+    bv3 = np.zeros(bias_3.shape)
+    bv4 = np.zeros(bias_4.shape)
 
-    s1 = np.zeros(f1.shape)
-    s2 = np.zeros(f2.shape)
-    s3 = np.zeros(w3.shape)
-    s4 = np.zeros(w4.shape)
-    bs1 = np.zeros(b1.shape)
-    bs2 = np.zeros(b2.shape)
-    bs3 = np.zeros(b3.shape)
-    bs4 = np.zeros(b4.shape)
+    s1 = np.zeros(filter_1.shape)
+    s2 = np.zeros(filter_2.shape)
+    s3 = np.zeros(weight_1.shape)
+    s4 = np.zeros(weight_2.shape)
+    bs1 = np.zeros(bias_1.shape)
+    bs2 = np.zeros(bias_2.shape)
+    bs3 = np.zeros(bias_3.shape)
+    bs4 = np.zeros(bias_4.shape)
 
     for i in range(batch_size):
+        print(".", end="")
+        sys.stdout.flush()
 
         img = batch[i]
         label = labels[i]
 
-        grads, loss = convolution(img, label, params, 1, 2, 2)
-        [temp_df1, temp_df2, temp_dw3, temp_dw4, temp_db1, temp_db2, temp_db3, temp_db4] = grads
+        grads, loss = convolution(img, label, params, conv_stride, pool_width, pool_stride)
+        [temp_deriv_filter_1, temp_deriv_filter_2, temp_deriv_weight_1, temp_deriv_weight_2, temp_deriv_bias_1, temp_deriv_bias_2, temp_deriv_bias_3, temp_deriv_bias_4] = grads
 
-        df1 += temp_df1
-        db1 += temp_db1
-        df2 += temp_df2
-        db2 += temp_db2
-        dw3 += temp_dw3
-        db3 += temp_db3
-        dw4 += temp_dw4
-        db4 += temp_db4
+        deriv_filter_1 += temp_deriv_filter_1
+        deriv_bias_1 += temp_deriv_bias_1
+        deriv_filter_2 += temp_deriv_filter_2
+        deriv_bias_2 += temp_deriv_bias_2
+        deriv_weight_1 += temp_deriv_weight_1
+        deriv_bias_3 += temp_deriv_bias_3
+        deriv_weight_2 += temp_deriv_weight_2
+        deriv_bias_4 += temp_deriv_bias_4
 
         temp_cost += loss
 
-    v1 = beta1 * v1 + (1-beta1) * df1 / batch_size
-    s1 = beta2 * s1 + (1-beta2) * (df1 / batch_size)**2
-    f1 -= lr * v1/np.sqrt(s1+epsilon)
+    v1 = beta1 * v1 + (1-beta1) * deriv_filter_1 / batch_size
+    s1 = beta2 * s1 + (1-beta2) * (deriv_filter_1 / batch_size)**2
+    filter_1 -= lr * v1/np.sqrt(s1+epsilon)
 
-    bv1 = beta1 * bv1 + (1 - beta1) * db1 / batch_size
-    bs1 = beta2 * bs1 + (1 - beta2) * (db1 / batch_size)**2
-    b1 -= lr * bv1/np.sqrt(bs1 + epsilon)
+    bv1 = beta1 * bv1 + (1 - beta1) * deriv_bias_1 / batch_size
+    bs1 = beta2 * bs1 + (1 - beta2) * (deriv_bias_1 / batch_size)**2
+    bias_1 -= lr * bv1/np.sqrt(bs1 + epsilon)
 
-    v2 = beta1 * v2 + (1 - beta1) * df2 / batch_size
-    s2 = beta2 * s2 + (1 - beta2) * (df2 / batch_size)**2
-    f2 -= lr * v2 / np.sqrt(s2 + epsilon)
+    v2 = beta1 * v2 + (1 - beta1) * deriv_filter_2 / batch_size
+    s2 = beta2 * s2 + (1 - beta2) * (deriv_filter_2 / batch_size)**2
+    filter_2 -= lr * v2 / np.sqrt(s2 + epsilon)
 
-    bv2 = beta1 * bv2 + (1 - beta1) * db2 / batch_size
-    bs2 = beta2 * bs2 + (1 - beta2) * (db2 / batch_size)**2
-    b2 -= lr * bv2 / np.sqrt(bs2 + epsilon)
+    bv2 = beta1 * bv2 + (1 - beta1) * deriv_bias_2 / batch_size
+    bs2 = beta2 * bs2 + (1 - beta2) * (deriv_bias_2 / batch_size)**2
+    bias_2 -= lr * bv2 / np.sqrt(bs2 + epsilon)
 
-    v3 = beta1 * v3 + (1 - beta1) * dw3 / batch_size
-    s3 = beta2 * s3 + (1 - beta2) * (dw3 / batch_size)**2
-    w3 -= lr * v3 / np.sqrt(s3 + epsilon)
+    v3 = beta1 * v3 + (1 - beta1) * deriv_weight_1 / batch_size
+    s3 = beta2 * s3 + (1 - beta2) * (deriv_weight_1 / batch_size)**2
+    weight_1 -= lr * v3 / np.sqrt(s3 + epsilon)
 
-    bv3 = beta1 * bv3 + (1 - beta1) * db3 / batch_size
-    bs3 = beta2 * bs3 + (1 - beta2) * (db3 / batch_size)**2
-    b3 -= lr * bv3 / np.sqrt(bs3 + epsilon)
+    bv3 = beta1 * bv3 + (1 - beta1) * deriv_bias_3 / batch_size
+    bs3 = beta2 * bs3 + (1 - beta2) * (deriv_bias_3 / batch_size)**2
+    bias_3 -= lr * bv3 / np.sqrt(bs3 + epsilon)
 
-    v4 = beta1 * v4 + (1 - beta1) * dw4 / batch_size
-    s4 = beta2 * s4 + (1 - beta2) * (dw4 / batch_size)**2
-    w4 -= lr * v4 / np.sqrt(s4 + epsilon)
+    v4 = beta1 * v4 + (1 - beta1) * deriv_weight_2 / batch_size
+    s4 = beta2 * s4 + (1 - beta2) * (deriv_weight_2 / batch_size)**2
+    weight_2 -= lr * v4 / np.sqrt(s4 + epsilon)
 
-    bv4 = beta1 * bv4 + (1 - beta1)  *db4 / batch_size
-    bs4 = beta2 * bs4 + (1 - beta2) * (db4 / batch_size)**2
-    b4 -= lr * bv4 / np.sqrt(bs4 + epsilon)
+    bv4 = beta1 * bv4 + (1 - beta1)  *deriv_bias_4 / batch_size
+    bs4 = beta2 * bs4 + (1 - beta2) * (deriv_bias_4 / batch_size)**2
+    bias_4 -= lr * bv4 / np.sqrt(bs4 + epsilon)
 
 
     temp_cost = temp_cost/batch_size
     cost.append(temp_cost)
 
-    params = [f1, f2, w3, w4, b1, b2, b3, b4]
+    params = [filter_1, filter_2, weight_1, weight_2, bias_1, bias_2, bias_3, bias_4]
 
     return params, cost
 
@@ -197,27 +215,26 @@ Returns:
     loss: loss over the image
 '''
 def convolution(img, label, params, conv_stride, pool_width, pool_stride):
-    [f1, f2, w3, w4, b1, b2, b3, b4] = params
+    [filter_1, filter_2, weight_1, weight_2, bias_1, bias_2, bias_3, bias_4] = params
 
     '''
     Forward Operation
     '''
 
-    conv1 = forward_conv(img, f1, b1, conv_stride)
+    conv1 = forward_conv(img, filter_1, bias_1, conv_stride)
     conv1[conv1<=0] = 0 # RELU
-    conv2 = forward_conv(conv1, f2, b2, conv_stride)
+    conv2 = forward_conv(conv1, filter_2, bias_2, conv_stride)
     conv2[conv2<=0] = 0 # RELU
 
     pooled = forward_maxpool(conv2, pool_width, pool_stride)
-
     (y, x, d) = pooled.shape
     fully_conn = pooled.reshape((d * x * y, 1))
 
     # condensing the fully connected layer
-    dense_1 = w3.dot(fully_conn) + b3
+    dense_1 = weight_1.dot(fully_conn) + bias_3
     dense_1[dense_1<=0] = 0
 
-    output = w4.dot(dense_1) + b4
+    output = weight_2.dot(dense_1) + bias_4
 
     probs = softmax(output)
 
@@ -231,13 +248,29 @@ def convolution(img, label, params, conv_stride, pool_width, pool_stride):
     Backward propogation
     '''
     delta_out = probs - label.reshape(probs.shape)
-    deriv_w4 = delta_out.dot(dense_1.T)
-    deriv_b4 = np.sum(delta_out, axis = 1).reshape(b4.shape)
+    deriv_weight_2 = delta_out.dot(dense_1.T)
+    deriv_bias_4 = np.sum(delta_out, axis = 1).reshape(bias_4.shape)
 
-    deriv_dense_1 = w4.T.dot(delta_out)
+    deriv_dense_1 = weight_2.T.dot(delta_out)
     deriv_dense_1[dense_1<=0] = 0
 
+    deriv_weight_1 = deriv_dense_1.dot(fully_conn.T)
+    deriv_bias_3 = np.sum(deriv_dense_1, axis=1).reshape(bias_3.shape)
 
+    deriv_fully_conn = weight_1.T.dot(deriv_dense_1)
+    deriv_pool = deriv_fully_conn.reshape(pooled.shape)
+
+    deriv_conv2 = backward_maxpool(deriv_pool, conv2, pool_width, pool_stride)
+    deriv_conv2[conv2 <= 0] = 0
+
+    deriv_conv1, deriv_filter_2, deriv_bias_2 = backward_conv(deriv_conv2, conv1, filter_2, conv_stride)
+    deriv_conv1[conv1 <= 0] = 0
+
+    deriv_img, deriv_filter_1, deriv_bias_1 = backward_conv(deriv_conv1, img, filter_1, conv_stride)
+
+    gradients = [deriv_filter_1, deriv_filter_2, deriv_weight_1, deriv_weight_2, deriv_bias_1, deriv_bias_2, deriv_bias_3, deriv_bias_4]
+
+    return gradients, loss
 
 '''
 Description:
@@ -417,9 +450,10 @@ def backward_maxpool(derivs_pool, conv, pool_width, stride):
             for x in range(c_x):
                 # get the index in the convoluted where the max was located
                 t = conv[curr_y:curr_y + pool_width, curr_x:curr_x + pool_width, d]
-                (conv_y, conv_x) = np.unravel_index(np.nanargmax(t), t.shape)
+                if t.any():
+                    (conv_y, conv_x) = np.unravel_index(np.nanargmax(t), t.shape)
 
-                derivs_out[curr_y + conv_y, curr_x + conv_x, d] = derivs_pool[d_y, d_x, d]
+                    derivs_out[curr_y + conv_y, curr_x + conv_x, d] = derivs_pool[d_y, d_x, d]
 
                 curr_x += stride
                 d_x += 1

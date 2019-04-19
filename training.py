@@ -2,8 +2,8 @@ import sys, os
 from os import walk
 import numpy as np
 from square_and_pickle_pics import *
-from conv.CNN import CNN
 from random import shuffle
+import cnn
 
 # Params for training on a data set
 training_folder = 'training_images/'
@@ -37,6 +37,7 @@ def train(s):
 					pickle_pics(np_pic_list, pickled_path)
 					np_pic_list.clear()
 				count += 1
+		train_cnn(s)
 
 	else:
 		train_cnn(s)
@@ -73,8 +74,8 @@ def train_cnn(s):
 		labels.append(label)
 	data = np.array(data)
 	labels = np.array(labels)
-	cnn = CNN()
-	cnn.train(data, img_size, labels, len(label_map))
+	cnn.train(data, labels, len(label_map))
+
 
 def main(args):
 	if '-s' in args[0]:

@@ -15,6 +15,17 @@ img_size = 250
 color = [0, 0, 0]
 
 
+def predict(s, path):
+	if not path or not os.path.isfile(path):
+		raise Exception('File path is not a valid file')
+
+	# based on the mode, load in the np params
+	params = np.load(ouptut_folder + s + "_params")
+	img = square(path, img_size, color)
+	cnn.predict(img, params)
+	
+
+
 def train(s):
 	if not (os.path.isdir(pickled_pics[s])):
 		imgs = []
@@ -46,7 +57,6 @@ def train(s):
 def train_cnn(s):
 	label_map = dict()
 	index = 0
-	num_img = 0
 	print("loading pickled files...")
 	for (path, _, filenames) in walk(pickled_pics[s]):
 		if len(filenames) > 0:
@@ -79,18 +89,34 @@ def train_cnn(s):
 
 
 def main(args):
-	if '-s' in args[0]:
-		print('Training on simpsons data set...')
-		train('simpsons')
+	try: 
+		if '-t' in args[0]:
+			if '-s' in args[1]:
+				print('Training on simpsons data set...')
+				train('simpsons')
 
-	elif '-d' in args[0]:
-		print('Training on stanford dog data set...')
-		train('dogs')
+			elif '-d' in args[1]:
+				print('Training on stanford dog data set...')
+				train('dogs')
 
-	else:
+		elif '-p' in args[0]:
+			if '-s' in args[1]:
+				predict('simpsons', args[2])
+
+			elif '-d' in args[1]:
+				predict('dogs', args[2])
+	
+		else:
+			print('Invalid parameters: ')
+			print('Correct call: python3 main.py <mode> <set> <img>')
+			print('Training: <mode>: -t, <set>: -s (Simpsons), -d (dogs), <img>: none')
+			print('Prediction: <mode>: -p, <set> -s (Simpsons), -d (dogs), <img>: path to image')
+
+	except:
 		print('Invalid parameters: ')
-		print('Correct call: python3 training.py <command>')
-		print('command: -s for simpsons data set, -d for dog data set')
+		print('Correct call: python3 main.py <mode> <set> <img>')
+		print('Training: <mode>: -t, <set>: -s (Simpsons), -d (dogs), <img>: none')
+		print('Prediction: <mode>: -p, <set> -s (Simpsons), -d (dogs), <img>: path to image')
 
 
 

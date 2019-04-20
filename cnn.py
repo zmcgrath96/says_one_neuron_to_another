@@ -3,6 +3,30 @@ from scipy.special import softmax
 import sys
 import time
 
+
+def predict(img, params):
+    pool_width = 2
+    pool_stride = 2
+    conv_stride = 1
+    [filter_1, filter_2, weight_1, weight_2, bias_1, bias_2, bias_3, bias_4] = params
+
+    conv1 = forward_conv(img, filter_1, bias_1, conv_stride)
+    conv1[conv1<=0] = 0 # RELU
+    conv2 = forward_conv(conv1, filter_2, bias_2, conv_stride)
+    conv2[conv2<=0] = 0 # RELU
+
+    pooled = forward_maxpool(conv2, pool_width, pool_stride)
+    (y, x, d) = pooled.shape
+    fully_conn = pooled.reshape((d * x * y, 1))
+
+    # condensing the fully connected layer
+    dense_1 = weight_1.dot(fully_conn) + bias_3
+    dense_1[dense_1<=0] = 0
+
+    output = weight_2.dot(dense_1) + bias_4
+
+    return softmax(output)
+
 '''
 Description:
     Train the CNN over the given dataset

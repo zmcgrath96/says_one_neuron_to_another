@@ -4,6 +4,7 @@ import numpy as np
 from square_and_pickle_pics import *
 from random import shuffle
 import cnn
+import pickle
 
 # Params for training on a data set
 training_folder = 'training_images/'
@@ -11,19 +12,22 @@ pickled_pics = {'simpsons': training_folder + 'simpsons/pickled_images/', 'dogs'
 images = {'simpsons': training_folder + 'simpsons/simpsons_dataset/', 'dogs': training_folder + 'dogs/images/'}
 annotations = {'simpsons': training_folder + 'simpsons/annotation.txt', 'dogs': training_folder + 'annotation/'}
 ouptut_folder = 'trained/'
-img_size = 250
+img_size = 64
 color = [0, 0, 0]
+
+np.set_printoptions(threshold=sys.maxsize)
 
 
 def predict(s, path):
-	if not path or not os.path.isfile(path):
+	if not os.path.isfile(path):
 		raise Exception('File path is not a valid file')
 
 	# based on the mode, load in the np params
-	params = np.load(ouptut_folder + s + "_params")
-	img = square(path, img_size, color)
-	cnn.predict(img, params)
-	
+	params = np.load(ouptut_folder + s + "_params.npy")
+	_, img = square(path, img_size, color)
+	res = cnn.predict(img, params)
+	print(np.max(res))
+	print(np.argmax(res))
 
 
 def train(s):
@@ -64,15 +68,22 @@ def train_cnn(s):
 			label_map[key] = index
 			index += 1
 
+	with open(ouptut_folder + s + "_lable_dict.pickle", 'wb') as f:
+		pickle.dump(label_map, f, protocol=pickle.HIGHEST_PROTOCOL)
+
 	data_labels = []
 	for (path, _, filenames) in walk(pickled_pics[s]):
 		if len(filenames) > 0:
 			key = path.split("/")[3]
 			print("Loading {} images...".format(key))
+			num_images  = 0
 			for img, i in zip(filenames, range(len(filenames))):
 				data = np.load(path + "/" + img)
 				label = label_map[key]
 				data_labels.append([data, label])
+				if num_images >= 100:
+					break
+				num_images += 1
 	print('Finished loading images')
 	shuffle(data_labels)
 	data = []
@@ -84,7 +95,7 @@ def train_cnn(s):
 		labels.append(label)
 	data = np.array(data)
 	labels = np.array(labels)
-	params = cnn.train(data, labels, len(label_map))
+	params = cnn.train(data, labels, len(label_map), img_dim=img_size)
 	np.save(ouptut_folder + s + "_params", params)
 
 
@@ -101,10 +112,10 @@ def main(args):
 
 		elif '-p' in args[0]:
 			if '-s' in args[1]:
-				predict('simpsons', args[2])
+				predict('simpsons', str(args[2]))
 
 			elif '-d' in args[1]:
-				predict('dogs', args[2])
+				predict('dogs', str(args[2]))
 	
 		else:
 			print('Invalid parameters: ')
@@ -112,13 +123,8 @@ def main(args):
 			print('Training: <mode>: -t, <set>: -s (Simpsons), -d (dogs), <img>: none')
 			print('Prediction: <mode>: -p, <set> -s (Simpsons), -d (dogs), <img>: path to image')
 
-	except:
-		print('Invalid parameters: ')
-		print('Correct call: python3 main.py <mode> <set> <img>')
-		print('Training: <mode>: -t, <set>: -s (Simpsons), -d (dogs), <img>: none')
-		print('Prediction: <mode>: -p, <set> -s (Simpsons), -d (dogs), <img>: path to image')
-
-
+	except Exception as e:
+		print(e)
 
 if __name__ == '__main__':
 	main(sys.argv[1:])

@@ -10,6 +10,8 @@ def predict(img, params):
     conv_stride = 1
     [filter_1, filter_2, weight_1, weight_2, bias_1, bias_2, bias_3, bias_4] = params
 
+    print (img)
+
     conv1 = forward_conv(img, filter_1, bias_1, conv_stride)
     conv1[conv1<=0] = 0 # RELU
     conv2 = forward_conv(conv1, filter_2, bias_2, conv_stride)
@@ -40,7 +42,7 @@ Parameters:
     batch_size: number of images to process before back propagation
     epochs: number of training iterations
 '''
-def train(data, labels, num_classes, img_dim=250, img_depth=3, batch_size=20, epochs=1):
+def train(data, labels, num_classes, img_dim=125, img_depth=3, batch_size=20, epochs=1):
     filt_dim = 5
     num_filt = 2
     pool_width = 2
@@ -66,13 +68,14 @@ def train(data, labels, num_classes, img_dim=250, img_depth=3, batch_size=20, ep
 
     for epoch in range(epochs):
          batches = [data[k:k + batch_size] for k in range(0, data.shape[0], batch_size)]
+         label_batches = [labels[k:k + batch_size] for k in range(0, labels.shape[0], batch_size)]
          i = 1
-         for batch in batches:
+         for batch in range(len(batches)):
              s_t = time.time()
              print("Epoch: {}, Batch: {}".format(epoch, i), end="")
              sys.stdout.flush()
-             params, cost = adam_opt_alg(batch, labels, num_classes, 0.01, img_dim, img_depth, 0.9, 0.999, params, cost, conv_stride, pool_width, pool_stride)
-             print("\n {}".format(cost))
+             params, cost = adam_opt_alg(batches[batch], label_batches[batch], num_classes, 0.01, img_dim, img_depth, 0.9, 0.999, params, cost, conv_stride, pool_width, pool_stride)
+             print("\n {}".format(cost[-1]))
              sys.stdout.flush()
              end_t = time.time()
              print("Batch {} took {} s".format(i, end_t - s_t))
@@ -468,17 +471,17 @@ def backward_maxpool(derivs_pool, conv, pool_width, stride):
     for d in range(c_d):
         # go through the height of the convoluted
         curr_y = d_y = 0
-        for y in range(c_y):
+        while curr_y + pool_width <= c_y:
             # go through the width of the convoluted
             curr_x = d_x = 0
-            for x in range(c_x):
+            while curr_x + pool_width <= c_x:
                 # get the index in the convoluted where the max was located
                 t = conv[curr_y:curr_y + pool_width, curr_x:curr_x + pool_width, d]
                 if t.any():
                     (conv_y, conv_x) = np.unravel_index(np.nanargmax(t), t.shape)
 
                     derivs_out[curr_y + conv_y, curr_x + conv_x, d] = derivs_pool[d_y, d_x, d]
-
+                   
                 curr_x += stride
                 d_x += 1
             curr_y += stride

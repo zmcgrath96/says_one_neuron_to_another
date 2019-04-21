@@ -7,5 +7,6 @@ annotation.tar
 images.tar
 pickled_images/
 __pycache__/
-*pyc
+*.pyc
 *pycache*
+*cpython*

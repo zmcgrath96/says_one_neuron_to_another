@@ -27,7 +27,11 @@ class NeuralNetwork:
             curr += 1
         return [self.w1, self.w2]
 
-    def test(self, data, labels):
+    def test(self, data, labels, params=None):
+        if params is not None:
+            [w1, w2] = params
+            self.w1 = w1
+            self.w2 = w2
         total_predictions = len(data)
         correct_predictions = 0
         curr = 1

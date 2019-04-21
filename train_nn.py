@@ -67,7 +67,7 @@ def load_from_pickle(set, type):
     return data
 
 def load_from_csv(set, type):
-    print("Loading " + set + " " + type + " from csv...")
+    print("Loading " + set + type + " from csv...")
     dataset = np.loadtxt("training_images/" + set + "/" + set + type + ".csv", skiprows=1, delimiter=",")
     print("Pickling data...")
     with open("training_images/" + set + "/"  + set + type + ".pkl", "bw") as fh:

@@ -19,7 +19,7 @@ Install dependencies
 $> pip3 install -r requirements.txt
 ```
 
-For prediction, the number recogintion has been trained on the training set to a 92% accuracy and the letter recognizer to a 60% accuracy. The necessary weights have been provided in the trained folder.The prediciton can be run with:
+For prediction, the number recogintion has been trained on the training set to a 92% accuracy and the letter recognizer to a 58% accuracy. The necessary weights have been provided in the trained folder.The prediciton can be run with:
 ```
 %> python3 predict_nn.py -numbers     # for testing number recogition
 %> python3 predict_nn.py -letters     # for testing letter recogition

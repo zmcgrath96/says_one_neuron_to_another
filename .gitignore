@@ -9,3 +9,5 @@ pickled_images/
 __pycache__/
 *pyc
 *pycache*
+emnist-letters/
+mnist/

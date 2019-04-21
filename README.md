@@ -26,6 +26,8 @@ For prediction, the number recogintion has been trained on the training set to a
 ```
 In either case, a random sample will be taken from the test dataset (which has been provided) and a prediction will be made of which class it belongs to.
 
+To test predictions on the whole training set, the "-a" command can be added to the command line. This will test the accuracy of all elements in the test dataset and return the percent that were predicted correctly.
+
 For retraining, the necessary trainging datasets will need to be download from the links above and the .csv will need to be placed in their corresponding training_images/ folders. The neural networks can then be trained with:
 ```
 %> ptyhon3 train_nn.py -letters

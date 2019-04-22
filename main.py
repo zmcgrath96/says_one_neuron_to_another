@@ -22,12 +22,54 @@ def predict(s, path):
 	if not os.path.isfile(path):
 		raise Exception('File path is not a valid file')
 
+	label_map = None
+	with open(ouptut_folder + s + "_lable_dict.pickle", 'rb') as r:
+		label_map  = pickle.load(r)
+
 	# based on the mode, load in the np params
 	params = np.load(ouptut_folder + s + "_params.npy")
 	_, img = square(path, img_size, color)
 	res = cnn.predict(img, params)
-	print(np.max(res))
-	print(np.argmax(res))
+	res_arg = np.argmax(res)
+	finding = ''
+	for key in label_map:
+		if label_map[key] == res_arg:
+			finding = key
+			break
+
+	print('The image is of {}'.format(finding))
+
+def accuracy(s):
+	label_map = None
+	with open(ouptut_folder + s + "_lable_dict.pickle", 'rb') as r:
+		label_map  = pickle.load(r)
+
+	data_labels = []
+	for (path, _, filenames) in walk(pickled_pics[s]):
+		if len(filenames) > 0:
+			key = path.split("/")[3]
+			print("Loading {} images...".format(key))
+			for img, i in zip(filenames, range(len(filenames))):
+				data = np.load(path + "/" + img)
+				label = label_map[key]
+				data_labels.append([data, label])
+
+	print('Finished laoding images')
+	params = np.load(ouptut_folder + s + "_params.npy")
+
+	print('Testing accuracy...')
+	right = count = 0
+	num_imgs = len(data_labels)
+	for d, l in data_labels:
+		label = np.zeros(len(label_map))
+		label[l] = 1
+		out = cnn.predict(d, params)
+		right = right + 1 if np.argmax(out) == np.argmax(label) else right 
+		count += 1
+		sys.stdout.write('Total progress: %d%%   \r' % ((count / num_imgs) * 100) )
+		sys.stdout.flush()
+
+	print('Model is about {}% correct'.format(int((right / count) * 100)))
 
 
 def train(s):
@@ -111,16 +153,22 @@ def main(args):
 
 		elif '-p' in args[0]:
 			if '-s' in args[1]:
-				predict('simpsons', str(args[2]))
+				if '-a' in args[2]:
+					accuracy('simpsons')
+				else:
+					predict('simpsons', str(args[2]))
 
 			elif '-d' in args[1]:
-				predict('dogs', str(args[2]))
+				if '-a' in args[2]:
+					accuracy('dogs')
+				else:
+					predict('dogs', str(args[2]))
 	
 		else:
 			print('Invalid parameters: ')
 			print('Correct call: python3 main.py <mode> <set> <img>')
 			print('Training: <mode>: -t, <set>: -s (Simpsons), -d (dogs), <img>: none')
-			print('Prediction: <mode>: -p, <set> -s (Simpsons), -d (dogs), <img>: path to image')
+			print('Prediction: <mode>: -p, <set> -s (Simpsons), -d (dogs), <img, accuracy>: path to image or -a to test accuracy of model')
 
 	except Exception as e:
 		print(e)

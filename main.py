@@ -85,11 +85,13 @@ def train_cnn(s):
 	shuffle(data_labels)
 	data = []
 	labels = []
+	print('Loading labels...')
 	for d, l in data_labels:
 		data.append(d)
 		label = np.zeros(len(label_map))
 		label[l] = 1
 		labels.append(label)
+	print('Finished loading labels')
 	data = np.array(data)
 	labels = np.array(labels)
 	params = cnn.train(data, labels, len(label_map), img_dim=img_size, batch_size=20, epochs=4)

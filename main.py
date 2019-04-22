@@ -76,14 +76,11 @@ def train_cnn(s):
 		if len(filenames) > 0:
 			key = path.split("/")[3]
 			print("Loading {} images...".format(key))
-			num_images  = 0
 			for img, i in zip(filenames, range(len(filenames))):
 				data = np.load(path + "/" + img)
 				label = label_map[key]
 				data_labels.append([data, label])
-				if num_images >= 100:
-					break
-				num_images += 1
+				
 	print('Finished loading images')
 	shuffle(data_labels)
 	data = []
@@ -95,7 +92,7 @@ def train_cnn(s):
 		labels.append(label)
 	data = np.array(data)
 	labels = np.array(labels)
-	params = cnn.train(data, labels, len(label_map), img_dim=img_size)
+	params = cnn.train(data, labels, len(label_map), img_dim=img_size, batch_size=20, epochs=4)
 	np.save(ouptut_folder + s + "_params", params)
 
 

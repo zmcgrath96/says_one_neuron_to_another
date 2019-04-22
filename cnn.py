@@ -2,7 +2,8 @@ import numpy as np
 from scipy.special import softmax
 import sys
 import time
-
+from random import shuffle
+from math import ceil
 
 def predict(img, params):
     pool_width = 2
@@ -10,10 +11,9 @@ def predict(img, params):
     conv_stride = 1
     [filter_1, filter_2, weight_1, weight_2, bias_1, bias_2, bias_3, bias_4] = params
 
-    print (img)
-
     conv1 = forward_conv(img, filter_1, bias_1, conv_stride)
     conv1[conv1<=0] = 0 # RELU
+
     conv2 = forward_conv(conv1, filter_2, bias_2, conv_stride)
     conv2[conv2<=0] = 0 # RELU
 
@@ -52,6 +52,10 @@ def train(data, labels, num_classes, img_dim=125, img_depth=3, batch_size=20, ep
     x = int((a - filt_dim)/conv_stride) + 1
     weight_1_size = int((x - pool_width)/pool_stride) + 1
 
+    # normalize the data
+    data -= int(np.mean(data))
+    data //= int(np.std(data))
+
     filter_1 = initialize_filter((num_filt,filt_dim,filt_dim,img_depth))
     filter_2 = initialize_filter((num_filt,filt_dim,filt_dim,num_filt))
     weight_1 = initialize_weights((128, num_filt * weight_1_size * weight_1_size))
@@ -65,20 +69,20 @@ def train(data, labels, num_classes, img_dim=125, img_depth=3, batch_size=20, ep
     params = [filter_1, filter_2, weight_1, weight_2, bias_1, bias_2, bias_3, bias_4]
 
     cost = []
+    indices = [i for i in range(len(data))]
 
     for epoch in range(epochs):
-         batches = [data[k:k + batch_size] for k in range(0, data.shape[0], batch_size)]
-         label_batches = [labels[k:k + batch_size] for k in range(0, labels.shape[0], batch_size)]
+         shuffle(indices)
          i = 1
-         for batch in range(len(batches)):
+         for batch in range(ceil(len(data) / batch_size)):
+             batch_is = indices[batch:batch+batch_size]
              s_t = time.time()
              print("Epoch: {}, Batch: {}".format(epoch, i), end="")
              sys.stdout.flush()
-             params, cost = adam_opt_alg(batches[batch], label_batches[batch], num_classes, 0.01, img_dim, img_depth, 0.9, 0.999, params, cost, conv_stride, pool_width, pool_stride)
-             print("\n {}".format(cost[-1]))
+             params, cost = adam_opt_alg(data[batch_is], labels[batch_is], num_classes, 0.01, img_dim, img_depth, 0.9, 0.999, params, cost, conv_stride, pool_width, pool_stride)
              sys.stdout.flush()
              end_t = time.time()
-             print("Batch {} took {} s".format(i, end_t - s_t))
+             print("\nBatch {} took {} s".format(i, end_t - s_t))
              i += 1
     return params
 

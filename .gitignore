@@ -7,6 +7,11 @@ annotation.tar
 images.tar
 pickled_images/
 __pycache__/
-*.pyc
+*pyc
 *pycache*
-*cpython*
+emnist-letters-train.csv
+emnist-letters-train.pkl
+emnist-letters-test.pkl
+mnist_train.csv
+mnist_train.pkl
+mnist_test.pkl

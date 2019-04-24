@@ -12,7 +12,7 @@ pickled_pics = {'simpsons': training_folder + 'simpsons/pickled_images/', 'dogs'
 images = {'simpsons': training_folder + 'simpsons/simpsons_dataset/', 'dogs': training_folder + 'dogs/images/'}
 annotations = {'simpsons': training_folder + 'simpsons/annotation.txt', 'dogs': training_folder + 'annotation/'}
 ouptut_folder = 'trained/'
-img_size = 64
+img_size = 128
 color = [0, 0, 0]
 
 np.set_printoptions(threshold=sys.maxsize)
@@ -116,12 +116,16 @@ def train_cnn(s):
 	data_labels = []
 	for (path, _, filenames) in walk(pickled_pics[s]):
 		if len(filenames) > 0:
+			num_imgs = 0
 			key = path.split("/")[3]
 			print("Loading {} images...".format(key))
 			for img, i in zip(filenames, range(len(filenames))):
 				data = np.load(path + "/" + img)
 				label = label_map[key]
 				data_labels.append([data, label])
+				if num_imgs >= 100:
+					break 
+				num_imgs += 1
 				
 	print('Finished loading images')
 	shuffle(data_labels)
